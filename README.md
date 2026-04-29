@@ -156,25 +156,6 @@ Results are written to `experiments/my_experiment/results/metrics.json`. Inferen
 
 ---
 
-## Core experiments
-
-Run all four experiments sequentially:
-
-```bash
-export PHI_PROJECT_ROOT=/path/to/project
-bash 03_experiments/run_experiments.sh
-```
-
-| Dataset | Phages | Condition | sp@1 |
-|---------|--------|-----------|------|
-| Cherry RefSeq-634 | 634 | RBP + BLASTN + BLASTP | 61.2% |
-| HiC Sp-1 | 46 | RBP + BLASTN | — |
-| HiC Sp-2 | 82 | RBP + BLASTN | — |
-| VHDB | 3418 | RBP + BLASTN + BLASTP | 49.8% |
-
-Logs are written to `experiments/logs/`.
-
----
 
 ## Baseline evaluation
 
