@@ -73,7 +73,8 @@ while IFS= read -r acc || [[ -n "$acc" ]]; do
     genome=$(find_genome "$QUERY_DIR" "$acc") || { echo "  SKIP $acc: genome not found"; n_skip=$((n_skip+1)); continue; }
     blastn -query "$genome" -db "$OUT_DIR/train_db" \
         -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovs" \
-        -max_target_seqs 10 -evalue 1e-5 -num_threads "$THREADS" \
+        -perc_identity 70 -qcov_hsp_perc 3 -max_hsps 1 \
+        -max_target_seqs 50 -evalue 1e-5 -num_threads "$THREADS" \
         >> "$OUTFILE"
     n_query=$((n_query + 1))
 done < "$QUERY_LIST"

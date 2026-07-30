@@ -45,8 +45,8 @@ def parse_args() -> argparse.Namespace:
                     help="Number of top neighbors per query (default: 5)")
     p.add_argument("--min-identity", type=float, default=70.0,
                     help="Minimum percent identity threshold (default: 70.0)")
-    p.add_argument("--min-qcov", type=int, default=50,
-                    help="Minimum query coverage threshold (default: 50)")
+    p.add_argument("--min-qcov", type=int, default=5,
+                    help="Minimum query coverage threshold (default: 5, matching the paper)")
     p.add_argument("--exclude-list", type=Path, default=None,
                     help="Text file of accessions to exclude (one per line)")
     return p.parse_args()
