@@ -11,7 +11,8 @@ Usage:
 
 Environment overrides:
     PHI_EXP_ROOT   root holding experiment folders        (default: current dir)
-    PHI_GOLD_CSV   phage,host gold mapping (species-level) (default: data/gold_normalized.csv)
+    PHI_GOLD_CSV   gold mapping: phage,host or phage_id,host_species[,split] (with or
+                   without header); species names underscore-joined  (default: data/cherry_phage_host_pair.csv)
     OLLAMA_URLS    comma-separated Ollama endpoints        (default: 11435,11436)
     OLLAMA_MODEL   model tag                                (default: qwen3-coder-next:q4_K_M)
     OLLAMA_SEED    decode seed (0 = backend default)        (default: 0)
@@ -20,7 +21,7 @@ import sys, os, json, re, asyncio, aiohttp, pathlib
 from json import JSONDecoder
 
 ROOT = pathlib.Path(os.environ.get("PHI_EXP_ROOT", "."))
-GOLD_CSV = pathlib.Path(os.environ.get("PHI_GOLD_CSV", "data/gold_normalized.csv"))
+GOLD_CSV = pathlib.Path(os.environ.get("PHI_GOLD_CSV", "data/cherry_phage_host_pair.csv"))
 MODEL = os.environ.get("OLLAMA_MODEL", "qwen3-coder-next:q4_K_M")
 NUM_CTX, NUM_PREDICT = 40960, 4096
 URLS = os.environ.get("OLLAMA_URLS", "http://127.0.0.1:11435,http://127.0.0.1:11436").split(",")
@@ -35,10 +36,21 @@ IND, RES = EXPDIR / "data" / "inputs", EXPDIR / "results"
 CACHE = RES / "cache"
 CACHE.mkdir(parents=True, exist_ok=True)
 
-gold = {}
-for l in open(GOLD_CSV):
-    if l.strip():
-        a, h = l.strip().split(",", 1); gold[a] = h
+def load_gold(path):
+    """Read phage->host, tolerating a header and an optional trailing split column."""
+    g = {}
+    for l in open(path):
+        l = l.strip()
+        if not l:
+            continue
+        p = l.split(",")
+        if len(p) < 2 or p[0].lower() in ("phage", "phage_id") or p[1].lower() in ("host", "host_species"):
+            continue  # header / malformed
+        g[p[0].strip()] = p[1].strip()   # column 2 = host; ignore any split column
+    return g
+
+
+gold = load_gold(GOLD_CSV)
 sample = next(IND.glob("*.txt")).read_text()
 cand = sample.split("=== USER MESSAGE ===")[1]
 ALL_HOSTS = list(dict.fromkeys(

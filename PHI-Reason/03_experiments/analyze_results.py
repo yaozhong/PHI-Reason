@@ -8,22 +8,42 @@ run_reason.py (results/cache/*.json).
 
 Environment overrides:
     PHI_EXP_ROOT   root holding experiment folders        (default: current dir)
-    PHI_GOLD_CSV   phage,host gold mapping (species-level) (default: data/gold_normalized.csv)
+    PHI_GOLD_CSV   gold mapping: phage,host or phage_id,host_species[,split] (with or
+                   without header)  (default: data/cherry_phage_host_pair.csv)
     PHI_FULL_EXP   name of the FULL experiment            (default: E_reason_full)
 """
 import json, glob, re, os, pathlib
 
 ROOT = pathlib.Path(os.environ.get("PHI_EXP_ROOT", "."))
-GOLD_CSV = pathlib.Path(os.environ.get("PHI_GOLD_CSV", "data/gold_normalized.csv"))
+GOLD_CSV = pathlib.Path(os.environ.get("PHI_GOLD_CSV", "data/cherry_phage_host_pair.csv"))
 FULLe = os.environ.get("PHI_FULL_EXP", "E_reason_full")
-N_TOTAL = None  # set from gold size
 
-gold = {a: h for a, h in (l.strip().split(',', 1) for l in open(GOLD_CSV) if l.strip())}
+
+def load_gold(path):
+    """Read phage->host, tolerating a header and an optional trailing split column."""
+    g = {}
+    for l in open(path):
+        l = l.strip()
+        if not l:
+            continue
+        p = l.split(",")
+        if len(p) < 2 or p[0].lower() in ("phage", "phage_id") or p[1].lower() in ("host", "host_species"):
+            continue
+        g[p[0].strip()] = p[1].strip()
+    return g
+
+
+gold = load_gold(GOLD_CSV)
 N_TOTAL = len(gold)
 SRC = ROOT / FULLe / "data" / "inputs"
 BN = "## Phylogenetic Cluster Context (whole-genome BLASTN"
 CR = "## CRISPR Spacer Matches"
-CAND = "=== 223 CANDIDATE HOSTS ==="
+CAND_RE = re.compile(r'^=== \d+ CANDIDATE HOSTS ===', re.M)   # candidate-count agnostic
+
+
+def cand_pos(t, start=0):
+    m = CAND_RE.search(t, start)
+    return m.start() if m else len(t)
 
 
 def block(t, h):
@@ -31,7 +51,7 @@ def block(t, h):
     if i < 0:
         return ""
     nx = re.search(r"\n## ", t[i + len(h):])
-    j = i + len(h) + nx.start() + 1 if nx else t.find(CAND, i)
+    j = i + len(h) + nx.start() + 1 if nx else cand_pos(t, i)
     return t[i:j]
 
 

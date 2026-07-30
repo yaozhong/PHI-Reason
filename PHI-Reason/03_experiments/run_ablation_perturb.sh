@@ -5,7 +5,8 @@
 #   1. Ollama running with the backbone loaded (see OLLAMA_URLS / OLLAMA_MODEL).
 #   2. The FULL prompt set built at  ${PHI_EXP_ROOT}/${PHI_FULL_EXP}/data/inputs/*.txt
 #      (produced by 01_profile_generation + 02_inference on the full evidence profile).
-#   3. A species-level gold mapping at ${PHI_GOLD_CSV} (phage,host per line).
+#   3. A gold mapping at ${PHI_GOLD_CSV}: phage,host or phage_id,host_species[,split]
+#      (with or without header; default data/cherry_phage_host_pair.csv).
 #
 # Usage:
 #   export PHI_EXP_ROOT=/path/to/experiments      # where E_reason_full/ lives

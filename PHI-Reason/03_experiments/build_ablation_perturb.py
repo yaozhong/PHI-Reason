@@ -18,13 +18,25 @@ Paths (override via environment):
 
 Each experiment writes prompt files to  <PHI_EXP_ROOT>/<name>/data/inputs/*.txt .
 """
-import re, random, os, pathlib
+import re, random, os, hashlib, pathlib
 
 ROOT = pathlib.Path(os.environ.get("PHI_EXP_ROOT", "."))
 FULL_EXP = os.environ.get("PHI_FULL_EXP", "E_reason_full")
 SRC = ROOT / FULL_EXP / "data" / "inputs"          # FULL prompt files
-CANDHDR = "=== 223 CANDIDATE HOSTS ==="
+CAND_RE = re.compile(r'^=== \d+ CANDIDATE HOSTS ===', re.M)   # candidate-count agnostic
 SEED = 42
+
+
+def cand_pos(t, start=0):
+    """Start offset of the candidate-hosts section (any host count), or end of text."""
+    m = CAND_RE.search(t, start)
+    return m.start() if m else len(t)
+
+
+def stem_seed(stem):
+    """Deterministic per-file seed (hashlib; hash() is salted by PYTHONHASHSEED)."""
+    return SEED + int(hashlib.md5(stem.encode()).hexdigest()[:8], 16)
+
 
 sample = open(next(iter(SRC.glob("*.txt")))).read()
 CANDS = re.findall(r'^\s*\d+\.\s+(\S+_\S+)\s*(?:\||$)',
@@ -40,7 +52,7 @@ def strip_section(t, hdr):
     if i < 0:
         return t
     nxt = re.search(r"\n## ", t[i + len(hdr):])
-    j = i + len(hdr) + nxt.start() + 1 if nxt else t.find(CANDHDR, i)
+    j = i + len(hdr) + nxt.start() + 1 if nxt else cand_pos(t, i)
     end = j
     while end < len(t) and t[end] == "\n":
         end += 1
@@ -59,7 +71,7 @@ def block_span(t, hdr):
     if i < 0:
         return None
     nxt = re.search(r"\n## ", t[i + len(hdr):])
-    j = i + len(hdr) + nxt.start() + 1 if nxt else t.find(CANDHDR, i)
+    j = i + len(hdr) + nxt.start() + 1 if nxt else cand_pos(t, i)
     return i, j
 
 
@@ -97,7 +109,7 @@ def build(name, fn):
     n = 0
     for f in SRC.glob("*.txt"):
         t = f.read_text()
-        rng = random.Random(SEED + hash(f.stem) % 100000)
+        rng = random.Random(stem_seed(f.stem))
         (out / f.name).write_text(fn(t, rng))
         n += 1
     print(f"{name}: {n}")
