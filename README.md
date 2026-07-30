@@ -307,13 +307,6 @@ BLASTN-neighbour / CRISPR-coverage strata.
 | `OLLAMA_MODEL` | `qwen3-coder-next:q4_K_M` | Ollama model tag |
 | `OLLAMA_SEED` | `0` | Decode seed (`0` = backend default) |
 
----
-
-## Baseline evaluation
-
-Baseline tools (PHP, WIsH, PHIST, DeepHost, PhaBOX2, VHM-net) and their evaluation code are
-provided in the [`PHI-Reason-Species`](../PHI-Reason-Species) repository under `04_baseline/`;
-see that repository's README for per-tool installation and metric computation.
 
 ---
 
