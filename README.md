@@ -4,7 +4,7 @@
 
 Code for **PHI-Reason**: an LLM-based phage–host interaction prediction framework that integrates multi-channel genomic evidence (RBP annotations, BLASTN neighbours, BLASTP neighbours, alignment-free 25-mer and CRISPR spacer records) into structured text profiles and queries a reasoning LLM to predict phage host range at species level.
 
-This repository is the superset of [`PHI-Reason-Species`](../PHI-Reason-Species): it keeps the same profile-building (`00_annotation`, `01_profile_generation`) and inference (`02_inference`) pipeline, and replaces the fixed experiment queue with the **evidence-perturbation platform** (`03_experiments`) — a set of ablation and label-perturbation experiments that, under a frozen backbone, measure how much each named evidence channel contributes, where channels are redundant, and how corrupting an evidence–label association changes the prediction.
+The pipeline builds phage and host evidence profiles (`00_annotation`, `01_profile_generation`), runs the frozen-LLM inference driver (`02_inference`), and provides an **evidence-perturbation platform** (`03_experiments`) — a set of ablation and label-perturbation experiments that, under a frozen backbone, measure how much each named evidence channel contributes, where channels are redundant, and how corrupting an evidence–label association changes the prediction.
 
 ---
 
