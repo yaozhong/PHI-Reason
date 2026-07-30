@@ -46,7 +46,7 @@ PHI-Reason/
 │       └── prompt_template.py             # System prompt and user message templates
 │
 ├── 03_experiments/                        # Evidence-perturbation platform
-│   ├── build_ablation_perturb.py          # Derive 6 ablation + 5 perturbation variants from FULL
+│   ├── build_ablation_perturb.py          # Derive 7 ablation + 5 perturbation variants from FULL
 │   ├── run_reason.py                      # Run one variant through the frozen backbone
 │   ├── run_ablation_perturb.sh            # Build → run all variants → analyze
 │   └── analyze_results.py                 # Additive ladder / leave-one-out / perturbation / strata
@@ -147,6 +147,9 @@ python 01_profile_generation/phage_profiles/build_phage_profiles_rbp.py \
     --out-dir       ws/Cherry/phage_profiles_rbp
 
 # Stage 1b: add BLASTN phylogenetic context
+# Two-stage filter (paper): the search (run_blastn.sh) keeps HSPs at identity >=70% and
+# qcov_hsp >=3%; this neighbour builder then applies identity >=70% and query coverage >=5%
+# (--min-identity / --min-qcov), keeping the top --top-k=5 neighbours per phage.
 python 01_profile_generation/phage_profiles/build_blastn_neighbors_json.py \
     --blastn-tsv ws/Cherry/blastn_search/blastn_hits.tsv \
     --host-csv   data/Cherry_data/phage1940_host_pair.csv \
@@ -251,7 +254,7 @@ Results are written to `experiments/my_experiment/results/metrics.json`. Inferen
 ### Step 5 — Evidence-perturbation experiments
 
 Starting from the FULL prompt set (produced by Steps 0–4 on the full evidence profile),
-`build_ablation_perturb.py` edits one named evidence block at a time to derive 11 variants;
+`build_ablation_perturb.py` edits one named evidence block at a time to derive 12 variants (7 ablations + 5 perturbations);
 the model, prompt and decoding stay unchanged.
 
 **Ablations** (remove a channel)

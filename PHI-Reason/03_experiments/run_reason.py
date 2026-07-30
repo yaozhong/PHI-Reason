@@ -51,7 +51,12 @@ def load_gold(path):
 
 
 gold = load_gold(GOLD_CSV)
-sample = next(IND.glob("*.txt")).read_text()
+files = sorted(IND.glob("*.txt"))
+if not files:
+    sys.exit(f"[{exp}] no prompt files in {IND}")
+sample = files[0].read_text()
+if "=== USER MESSAGE ===" not in sample:
+    sys.exit(f"[{exp}] prompt missing '=== USER MESSAGE ===' marker: {files[0]}")
 cand = sample.split("=== USER MESSAGE ===")[1]
 ALL_HOSTS = list(dict.fromkeys(
     re.findall(r'^\s*\d+\.\s+(\S+_\S+)\s*(?:\[[^\]]+\])?\s*(?:\||$)', cand, re.M)))
@@ -59,6 +64,14 @@ ALL_HOSTS = list(dict.fromkeys(
 
 def clean_host(x):
     return re.sub(r'\s*\[[^\]]*\]', '', str(x)).strip().replace(" ", "_").strip("_")
+
+
+def genus(name):
+    """Genus token, keeping the two-word 'Candidatus <Genus>' form intact."""
+    parts = name.split("_")
+    if parts[0] == "Candidatus" and len(parts) > 1:
+        return "_".join(parts[:2])
+    return parts[0]
 
 
 print(f"[{exp}] seed={SEED} candidates={len(ALL_HOSTS)} gold={len(gold)}", flush=True)
@@ -107,7 +120,9 @@ async def infer(session, acc):
     cf = CACHE / f"{acc}.json"
     if cf.exists():
         try:
-            return acc, json.loads(cf.read_text())["scores"]
+            c = json.loads(cf.read_text())
+            if c.get("model") == MODEL and c.get("seed") == SEED:   # invalidate on model/seed change
+                return acc, c["scores"]
         except Exception:
             pass
     txt = (IND / f"{acc}.txt").read_text()
@@ -122,16 +137,21 @@ async def infer(session, acc):
             try:
                 async with session.post(f"{url}/api/generate", json=payload,
                                         timeout=aiohttp.ClientTimeout(total=1800)) as r:
+                    if r.status != 200:
+                        raise RuntimeError(f"HTTP {r.status}")
                     d = await r.json()
+                if d.get("error"):                       # Ollama-level error in a 200 body
+                    raise RuntimeError(str(d["error"])[:120])
                 raw = d.get("response", ""); gt = d.get("eval_count", 0)
                 scores, cutoff, perr, reasoning = parse_response(raw, gt)
                 cf.write_text(json.dumps({"phage": acc, "scores": scores, "cutoff": cutoff,
-                                          "gen_tokens": gt, "reasoning": reasoning}))
+                                          "gen_tokens": gt, "reasoning": reasoning,
+                                          "model": MODEL, "seed": SEED, "parse_error": perr}))
                 return acc, scores
             except Exception as e:
                 if attempt == 2:
                     print(f"  FAIL {acc}: {repr(e)[:80]}", flush=True)
-                    return acc, {h: 0.0 for h in ALL_HOSTS}
+                    return acc, None                     # hard failure: not cached, reported below
                 await asyncio.sleep(3)
 
 
@@ -139,23 +159,30 @@ async def main():
     accs = [f.stem for f in IND.glob("*.txt")]
     conn = aiohttp.TCPConnector(limit=0)
     async with aiohttp.ClientSession(connector=conn) as s:
-        res = {}; done = 0
+        res = {}; done = 0; n_fail = 0
         for fut in asyncio.as_completed([infer(s, a) for a in accs]):
-            a, sc = await fut; res[a] = sc; done += 1
+            a, sc = await fut; done += 1
+            if sc is None:                       # hard failure -> conservative miss, flagged
+                n_fail += 1; sc = {}
+            res[a] = sc
             if done % 50 == 0:
                 print(f"  {done}/{len(accs)}", flush=True)
+    if n_fail:
+        print(f"[{exp}] WARNING: {n_fail} phage(s) failed all retries; counted as misses (not cached)", flush=True)
     s1 = s5 = s10 = g1 = g5 = n = 0; mrr = 0.0; rows = []
     for a, sc in res.items():
         if a not in gold:
             continue
-        t = gold[a]; tg = t.split("_")[0]; n += 1
+        t = gold[a]; tg = genus(t); n += 1
         order = [h for h, _ in sorted(sc.items(), key=lambda kv: (-kv[1], kv[0]))]
         rank = order.index(t) + 1 if t in order else 999
-        grank = min([i + 1 for i, h in enumerate(order) if h.split("_")[0] == tg] or [999])
+        grank = min([i + 1 for i, h in enumerate(order) if genus(h) == tg] or [999])
         s1 += rank <= 1; s5 += rank <= 5; s10 += rank <= 10
         g1 += grank <= 1; g5 += grank <= 5; mrr += 1.0 / rank
         rows.append((a, t, order[0], rank, grank))
-    m = {"exp": exp, "model": MODEL, "seed": SEED, "n": n, "num_ctx": NUM_CTX,
+    if n == 0:
+        sys.exit(f"[{exp}] no gold overlap among {len(res)} phages (check PHI_GOLD_CSV / accession format)")
+    m = {"exp": exp, "model": MODEL, "seed": SEED, "n": n, "n_fail": n_fail, "num_ctx": NUM_CTX,
          "species_top1": round(s1 / n, 4), "species_top5": round(s5 / n, 4), "species_top10": round(s10 / n, 4),
          "genus_top1": round(g1 / n, 4), "genus_top5": round(g5 / n, 4), "species_mrr": round(mrr / n, 4)}
     json.dump(m, open(RES / "metrics.json", "w"), indent=1)

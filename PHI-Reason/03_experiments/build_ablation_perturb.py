@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive the ablation (6) and perturbation (5) experiments from the FULL profile set.
+"""Derive the ablation (7) and perturbation (5) experiments (12 variants) from the FULL profile set.
 
 Ablations remove one evidence channel at a time (additive ladder + leave-one-out);
 perturbations corrupt the host label inside one channel (scramble / label-free) while
@@ -38,13 +38,26 @@ def stem_seed(stem):
     return SEED + int(hashlib.md5(stem.encode()).hexdigest()[:8], 16)
 
 
-sample = open(next(iter(SRC.glob("*.txt")))).read()
+import sys
+_files = sorted(SRC.glob("*.txt"))
+if not _files:
+    sys.exit(f"no FULL prompt files in {SRC} (set PHI_EXP_ROOT / PHI_FULL_EXP)")
+sample = _files[0].read_text()
+if "=== USER MESSAGE ===" not in sample:
+    sys.exit(f"FULL prompt missing '=== USER MESSAGE ===' marker: {_files[0]}")
 CANDS = re.findall(r'^\s*\d+\.\s+(\S+_\S+)\s*(?:\||$)',
                    sample.split("=== USER MESSAGE ===")[1], re.M)
 
 BN = "## Phylogenetic Cluster Context (whole-genome BLASTN"
 KM = "## Genome-Level Shared 25-mers"
 CR = "## CRISPR Spacer Matches"
+
+# Warn loudly if an evidence channel is absent from ALL FULL prompts: its
+# ablation/perturbation would otherwise be a silent no-op.
+for _name, _marker in [("BLASTN", BN), ("25-mer", KM), ("CRISPR", CR), ("RBP", "← RBP matches")]:
+    if not any(_marker in f.read_text() for f in _files):
+        print(f"WARNING: evidence channel {_name} ('{_marker}') absent from all "
+              f"{len(_files)} FULL prompts; its ablation/perturbation will be a no-op")
 
 
 def strip_section(t, hdr):

@@ -34,8 +34,10 @@ def load_gold(path):
 
 
 gold = load_gold(GOLD_CSV)
-N_TOTAL = len(gold)
 SRC = ROOT / FULLe / "data" / "inputs"
+# Denominator = phages actually in the experiment (FULL inputs that have a gold label),
+# NOT len(gold): a full gold CSV (e.g. Cherry 1,940 = train+test) far exceeds the 634 eval set.
+N_TOTAL = sum(1 for f in SRC.glob("*.txt") if f.stem in gold) or len(gold)
 BN = "## Phylogenetic Cluster Context (whole-genome BLASTN"
 CR = "## CRISPR Spacer Matches"
 CAND_RE = re.compile(r'^=== \d+ CANDIDATE HOSTS ===', re.M)   # candidate-count agnostic
