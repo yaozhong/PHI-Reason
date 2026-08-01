@@ -315,4 +315,4 @@ BLASTN-neighbour / CRISPR-coverage strata.
 
 ## Citation
 
-> Zhang, Y.-Z., Xu, L., & Imoto, S. (2026). PHI-Reason: Evidence-grounded species-level phage-host prediction from structured biological text profiles. bioRxiv. https://doi.org/10.64898/2026.06.10.727770
+> Zhang, Y.-Z., Xu, L., & Imoto, S. (2026). General-purpose language models integrate structured biological evidence for explainable biological interaction prediction. bioRxiv. https://doi.org/10.64898/2026.06.10.727770v2
